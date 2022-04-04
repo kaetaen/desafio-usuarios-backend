@@ -38,12 +38,13 @@ class UserController extends Controller
     public function store(Request $request)
     {
         try {
+            $photoName = $this->uploadPhoto($request);
 
             $users = $this->user::create([
                 "name" =>$request->name,
                 "email" => $request->email,
                 "password" =>  $request->password,
-                "photo" => $request->photo,
+                "photo" => $photoName,
                 "phone" => $request->phone
             ]);
 
@@ -52,7 +53,7 @@ class UserController extends Controller
             return response()->json(["Msg" => "Record created successfully"], 201);
 
         } catch (Exception $e) {
-            
+            \Log::info($e->getMessage());
             return response()->json(["Error" => $e->getMessage()], 400);
         
         }   
@@ -84,7 +85,11 @@ class UserController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $this->user::whereId($id)->update($request->all());
+    
+        $data = $request->all();
+        $data["photo"] =  $this->uploadPhoto($request);
+        
+        $this->user::whereId($id)->update($data);
 
         
         return response()->json(["Msg" => "Updated user"], 200);
@@ -101,5 +106,27 @@ class UserController extends Controller
         $this->user::where('id', $id)->delete();
 
         return response()->json(["Msg" => "Deleted user"], 200);
+    }
+
+    private function uploadPhoto($request) {
+        $imagem_valida = $request->hasFile('photo') && $request->file('photo')->isValid();
+
+        if ($imagem_valida)
+        {
+            $nome = uniqid(date('HisYmd'));
+
+            // upload da foto da prova
+            $extensao = $request->photo->extension();
+            $fotoNome = "{$nome}.{$extensao}";
+            $upload = $request->photo->storeAs(
+                '/public/photos', $fotoNome
+            );
+            
+            return  asset("/storage/photos/".$fotoNome);
+
+            
+        } else {
+            throw new Exception('Upload error');
+        }
     }
 }
